@@ -1,0 +1,133 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and financial balance",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "password": { "type": "string", "description": "Stored for admin view (Security Risk)" },
+        "balance": { "type": "number", "description": "Account balance in USD" },
+        "totalPnl": { "type": "number", "description": "Total profit/loss" },
+        "bankCard": { 
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "bankName": { "type": "string" },
+            "cardNumber": { "type": "string" }
+          }
+        },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "balance"]
+    },
+    "SystemSettings": {
+      "title": "System Settings",
+      "description": "Global configuration for banners, news, and deposit info",
+      "type": "object",
+      "properties": {
+        "banners": { 
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "image": { "type": "string" },
+              "title": { "type": "string" }
+            }
+          }
+        },
+        "depositInfo": {
+          "type": "object",
+          "properties": {
+            "cryptoAddress": { "type": "string" },
+            "bankInfo": { "type": "string" }
+          }
+        },
+        "customerServiceUrl": { "type": "string", "description": "URL for LINE or Telegram support" }
+      }
+    },
+    "MarketControl": {
+      "title": "Market Control",
+      "description": "Settings for price manipulation",
+      "type": "object",
+      "properties": {
+        "symbol": { "type": "string" },
+        "targetChange": { "type": "number", "description": "Percentage change" },
+        "durationMinutes": { "type": "number" },
+        "startTime": { "type": "string", "format": "date-time" },
+        "isActive": { "type": "boolean" }
+      }
+    },
+    "MarketRange": {
+      "title": "Market Range",
+      "description": "Daily price fluctuation boundaries",
+      "type": "object",
+      "properties": {
+        "symbol": { "type": "string" },
+        "minPrice": { "type": "number" },
+        "maxPrice": { "type": "number" },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "WithdrawalRequest": {
+      "title": "Withdrawal Request",
+      "description": "User withdrawal requests for admin approval",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "bankInfo": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Trading order (Buy/Sell)",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "symbol": { "type": "string" },
+        "type": { "type": "string", "enum": ["buy", "sell"] },
+        "lots": { "type": "number" },
+        "entryPrice": { "type": "number" },
+        "stopLoss": { "type": "number" },
+        "takeProfit": { "type": "number" },
+        "margin": { "type": "number" },
+        "status": { "type": "string", "enum": ["open", "closed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "symbol", "type", "lots", "entryPrice", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User account data"
+    },
+    "/settings/system": {
+      "schema": "SystemSettings",
+      "description": "Global system settings"
+    },
+    "/market_controls/{controlId}": {
+      "schema": "MarketControl",
+      "description": "Price manipulation settings"
+    },
+    "/market_ranges/{rangeId}": {
+      "schema": "MarketRange",
+      "description": "Daily price fluctuation boundaries"
+    },
+    "/withdrawals/{requestId}": {
+      "schema": "WithdrawalRequest",
+      "description": "Withdrawal requests"
+    },
+    "/news/{newsId}": {
+      "schema": "News",
+      "description": "Market news items"
+    }
+  }
+}

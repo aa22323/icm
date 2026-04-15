@@ -1,0 +1,110 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId}
+    // Fields:
+    //   - uid: string (required)
+    //   - email: string (optional)
+    //   - balance: number (required)
+    //   - createdAt: timestamp (optional)
+    //
+    // Collection: orders
+    // Document ID: {orderId}
+    // Fields:
+    //   - userId: string (required)
+    //   - symbol: string (required)
+    //   - type: string (required, 'buy'|'sell')
+    //   - lots: number (required)
+    //   - entryPrice: number (required)
+    //   - stopLoss: number (optional)
+    //   - takeProfit: number (optional)
+    //   - margin: number (required)
+    //   - status: string (required, 'open'|'closed')
+    //   - createdAt: timestamp (required)
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'balance']) &&
+             data.uid == request.auth.uid &&
+             data.balance is number && data.balance >= 0;
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll(['userId', 'symbol', 'type', 'lots', 'entryPrice', 'status', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.type in ['buy', 'sell'] &&
+             data.lots is number && data.lots > 0 &&
+             data.entryPrice is number && data.entryPrice > 0 &&
+             data.status in ['open', 'closed'];
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          request.auth.token.email == "oopqwe001@gmail.com");
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if (isOwner(userId) && isValidUser(request.resource.data)) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /orders/{orderId} {
+      allow read: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isAdmin();
+      allow create: if isAuthenticated() && isValidOrder(request.resource.data);
+      allow update: if (isAuthenticated() && resource.data.userId == request.auth.uid && isValidOrder(request.resource.data)) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /news/{newsId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /market_controls/{controlId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /market_ranges/{rangeId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /withdrawals/{requestId} {
+      allow read: if (isAuthenticated() && resource.data.uid == request.auth.uid) || isAdmin();
+      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /transactions/{txId} {
+      allow read: if (isAuthenticated() && resource.data.uid == request.auth.uid) || isAdmin();
+      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      allow update: if isAdmin();
+    }
+  }
+}
