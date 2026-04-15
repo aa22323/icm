@@ -16,7 +16,7 @@ import { useTranslation } from "react-i18next";
 
 export default function App() {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState('market');
+  const [activeTab, setActiveTab] = useState('home');
   const [tabParams, setTabParams] = useState<any>(null);
   const [selectedProductId, setSelectedProductId] = useState('XAUUSD');
   const [user, setUser] = useState<any>(null);
@@ -94,16 +94,16 @@ export default function App() {
           {activeTab === 'home' && <MobileHome onSelectMarket={() => setActiveTab('market')} onTabChange={handleTabChange} />}
           {activeTab === 'market' && <MobileMarketList onSelectProduct={handleProductSelect} />}
           {activeTab === 'trade' && <MobileTradingView productId={selectedProductId} user={user} />}
-          {activeTab === 'orders' && <MobileOrders onBack={() => setActiveTab('market')} />}
+          {activeTab === 'orders' && <MobileOrders onBack={() => setActiveTab('home')} />}
           {activeTab === 'mine' && (
             user && (!user.isAnonymous || tabParams?.demo || localStorage.getItem('is_demo_user') === 'true') ? 
             <MobileProfile onLogout={() => { 
-              setActiveTab('market'); 
+              setActiveTab('home'); 
               setTabParams(null); 
               localStorage.removeItem('is_demo_user');
             }} onTabChange={handleTabChange} /> : 
             <MobileLogin 
-              onBack={() => setActiveTab('market')} 
+              onBack={() => setActiveTab('home')} 
               onLogin={() => setTabParams({ ...tabParams, demo: true })}
               initialMode={tabParams?.mode} 
             />
