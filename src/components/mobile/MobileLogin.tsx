@@ -27,37 +27,48 @@ export default React.memo(function MobileLogin({ onBack, onLogin, initialMode }:
       await signInAnonymously(auth);
       if (onLogin) onLogin();
     } catch (err: any) {
-      console.error("Anonymous login failed, attempting random account generation:", err);
+      console.error("Anonymous login failed:", err);
       
-      // Fallback: Generate a random account
-      try {
-        const randomId = Math.random().toString(36).substring(2, 10);
-        const demoEmail = `demo_${randomId}@cal-trading.com`;
-        const demoPassword = `demo_${randomId}_pass`;
-        
-        const result = await createUserWithEmailAndPassword(auth, demoEmail, demoPassword);
-        
-        // Initialize user document
-        await setDoc(doc(db, "users", result.user.uid), {
-          uid: result.user.uid,
-          balance: 10000,
-          createdAt: serverTimestamp(),
-          email: result.user.email,
-          isDemo: true
-        });
-        
-        if (onLogin) onLogin();
-      } catch (innerErr: any) {
-        console.error("Random account generation failed:", innerErr);
-        if (innerErr.code === 'auth/admin-restricted-operation' || innerErr.code === 'auth/operation-not-allowed') {
-          setError("Firebase Auth is currently restricted. Please enable 'Anonymous' or 'Email/Password' in your Firebase Console (Authentication > Sign-in method).");
-        } else {
-          setError(innerErr.message || "Failed to create demo account.");
+      if (err.code === 'auth/network-request-failed') {
+        setError("Network error: Unable to reach authentication server. If you are in a restricted region, please use a VPN. Alternatively, you can use 'Local Demo Mode' below.");
+      } else {
+        // Fallback: Generate a random account
+        try {
+          const randomId = Math.random().toString(36).substring(2, 10);
+          const demoEmail = `demo_${randomId}@cal-trading.com`;
+          const demoPassword = `demo_${randomId}_pass`;
+          
+          const result = await createUserWithEmailAndPassword(auth, demoEmail, demoPassword);
+          
+          // Initialize user document
+          await setDoc(doc(db, "users", result.user.uid), {
+            uid: result.user.uid,
+            balance: 10000,
+            createdAt: serverTimestamp(),
+            email: result.user.email,
+            isDemo: true
+          });
+          
+          if (onLogin) onLogin();
+        } catch (innerErr: any) {
+          console.error("Random account generation failed:", innerErr);
+          if (innerErr.code === 'auth/admin-restricted-operation' || innerErr.code === 'auth/operation-not-allowed') {
+            setError("Firebase Auth is currently restricted. Please enable 'Anonymous' or 'Email/Password' in your Firebase Console.");
+          } else if (innerErr.code === 'auth/network-request-failed') {
+            setError("Network error: Unable to reach authentication server. Please check your connection or use a VPN.");
+          } else {
+            setError(innerErr.message || "Failed to create demo account.");
+          }
         }
       }
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleLocalDemo = () => {
+    localStorage.setItem('is_local_demo', 'true');
+    if (onLogin) onLogin();
   };
 
   const handleForgotPassword = async () => {
@@ -232,6 +243,16 @@ export default React.memo(function MobileLogin({ onBack, onLogin, initialMode }:
               t('create_demo_account')
             )}
           </button>
+
+          {error?.includes('Network error') && (
+            <button 
+              type="button"
+              onClick={handleLocalDemo}
+              className="w-full h-[58px] bg-gray-100 text-gray-600 rounded-full font-bold text-[14px] active:scale-[0.98] transition-transform flex items-center justify-center text-center px-10 leading-tight"
+            >
+              Skip & Use Local Demo Mode
+            </button>
+          )}
         </div>
       </form>
     </div>
