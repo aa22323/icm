@@ -61,7 +61,7 @@ export default function App() {
           if (!docSnap.exists()) {
             setDoc(userRef, {
               uid: u.uid,
-              balance: 10000,
+              balance: u.isAnonymous ? 100000 : 0,
               createdAt: serverTimestamp(),
               isAnonymous: u.isAnonymous
             }).catch(err => console.error("Error creating user doc:", err));
@@ -148,4 +148,5 @@ export default function App() {
     </div>
   );
 }
+
 
