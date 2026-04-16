@@ -20,6 +20,7 @@ export default function App() {
   const [tabParams, setTabParams] = useState<any>(null);
   const [selectedProductId, setSelectedProductId] = useState('XAUUSD');
   const [user, setUser] = useState<any>(null);
+  const [isLocalDemo, setIsLocalDemo] = useState(localStorage.getItem('is_local_demo') === 'true');
   const [customerServiceUrl, setCustomerServiceUrl] = useState<string>('');
 
   useEffect(() => {
@@ -28,15 +29,15 @@ export default function App() {
       if (docSnap.exists()) {
         setCustomerServiceUrl(docSnap.data().customerServiceUrl || '');
       }
-    });
+    }, (err) => console.warn("Settings fetch failed (likely offline):", err));
 
     // Test Firestore connection
     const testConnection = async () => {
       try {
         await getDocFromServer(doc(db, '_connection_test', 'ping'));
       } catch (error: any) {
-        if (error.message?.includes('the client is offline')) {
-          console.error("Firebase connection error: The client is offline. Check your Firebase configuration.");
+        if (error.message?.includes('the client is offline') || error.message?.includes('network-request-failed')) {
+          console.error("Firebase connection error: Network issue detected.");
         }
       }
     };
@@ -45,6 +46,8 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       setUser(u);
       if (u) {
+        setIsLocalDemo(false);
+        localStorage.removeItem('is_local_demo');
         // Persist demo state if user is anonymous
         if (u.isAnonymous) {
           localStorage.setItem('is_demo_user', 'true');
@@ -96,15 +99,23 @@ export default function App() {
           {activeTab === 'trade' && <MobileTradingView productId={selectedProductId} user={user} />}
           {activeTab === 'orders' && <MobileOrders onBack={() => setActiveTab('home')} />}
           {activeTab === 'mine' && (
-            user && (!user.isAnonymous || tabParams?.demo || localStorage.getItem('is_demo_user') === 'true') ? 
+            (user || isLocalDemo) && (!user?.isAnonymous || tabParams?.demo || localStorage.getItem('is_demo_user') === 'true' || isLocalDemo) ? 
             <MobileProfile onLogout={() => { 
               setActiveTab('home'); 
               setTabParams(null); 
               localStorage.removeItem('is_demo_user');
-            }} onTabChange={handleTabChange} /> : 
+              localStorage.removeItem('is_local_demo');
+              setIsLocalDemo(false);
+              auth.signOut();
+            }} onTabChange={handleTabChange} isLocalDemo={isLocalDemo} /> : 
             <MobileLogin 
               onBack={() => setActiveTab('home')} 
-              onLogin={() => setTabParams({ ...tabParams, demo: true })}
+              onLogin={() => {
+                setTabParams({ ...tabParams, demo: true });
+                if (localStorage.getItem('is_local_demo') === 'true') {
+                  setIsLocalDemo(true);
+                }
+              }}
               initialMode={tabParams?.mode} 
             />
           )}
