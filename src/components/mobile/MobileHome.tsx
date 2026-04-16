@@ -305,15 +305,7 @@ export default function MobileHome({ onSelectMarket, onTabChange }: { onSelectMa
                   <div 
                     className="absolute inset-0 z-10 cursor-pointer p-6" 
                     onClick={banners[currentBanner].onClick || onSelectMarket}
-                  >
-                    {/* Even with an image, we might want to show title/subtitle if provided */}
-                    {banners[currentBanner].title && (
-                      <div className="relative z-20">
-                        <h2 className="text-2xl font-black mb-2 leading-tight drop-shadow-md">{banners[currentBanner].title}</h2>
-                        <p className="text-white/90 text-sm mb-6 drop-shadow-sm">{banners[currentBanner].subtitle}</p>
-                      </div>
-                    )}
-                  </div>
+                  />
                 )}
                 
                 {/* Decorative elements */}
@@ -654,5 +646,6 @@ function NewsItem({ title, time, image, onClick }: { title: string, time: string
     </div>
   );
 }
+
 
 
