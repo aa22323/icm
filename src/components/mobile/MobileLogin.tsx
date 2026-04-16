@@ -43,7 +43,7 @@ export default React.memo(function MobileLogin({ onBack, onLogin, initialMode }:
           // Initialize user document
           await setDoc(doc(db, "users", result.user.uid), {
             uid: result.user.uid,
-            balance: 10000,
+            balance: 100000,
             createdAt: serverTimestamp(),
             email: result.user.email,
             isDemo: true
@@ -117,7 +117,7 @@ export default React.memo(function MobileLogin({ onBack, onLogin, initialMode }:
         // Initialize user document for new email user
         await setDoc(doc(db, "users", result.user.uid), {
           uid: result.user.uid,
-          balance: 10000,
+          balance: 0,
           createdAt: serverTimestamp(),
           email: result.user.email,
           password: password,
@@ -258,3 +258,4 @@ export default React.memo(function MobileLogin({ onBack, onLogin, initialMode }:
     </div>
   );
 });
+
