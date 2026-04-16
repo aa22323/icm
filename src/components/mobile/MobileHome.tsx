@@ -63,7 +63,22 @@ export default function MobileHome({ onSelectMarket, onTabChange }: { onSelectMa
   
   const [selectedNews, setSelectedNews] = useState<NewsItemData | null>(null);
   const [currentBanner, setCurrentBanner] = useState(0);
-  const [banners, setBanners] = useState<any[]>([]);
+  const [banners, setBanners] = useState<any[]>([
+    {
+      title: t('global_trading_platform'),
+      subtitle: t('safe_transparent_efficient'),
+      buttonText: t('start_trading_now'),
+      gradient: "from-[#0166fc] to-[#004dc2]",
+      onClick: onSelectMarket
+    },
+    {
+      title: t('fast_account_wealth'),
+      subtitle: t('register_demo_bonus'),
+      buttonText: t('register_now'),
+      gradient: "from-[#6366f1] to-[#4f46e5]",
+      onClick: () => onTabChange('mine', { mode: 'register' })
+    }
+  ]);
   const [news, setNews] = useState<NewsItemData[]>([]);
 
   useEffect(() => {
@@ -71,24 +86,6 @@ export default function MobileHome({ onSelectMarket, onTabChange }: { onSelectMa
     const unsubSettings = onSnapshot(doc(db, "settings", "system"), (docSnap) => {
       if (docSnap.exists() && docSnap.data().banners) {
         setBanners(docSnap.data().banners);
-      } else {
-        // Fallback banners
-        setBanners([
-          {
-            title: t('global_trading_platform'),
-            subtitle: t('safe_transparent_efficient'),
-            buttonText: t('start_trading_now'),
-            gradient: "from-[#0166fc] to-[#004dc2]",
-            onClick: onSelectMarket
-          },
-          {
-            title: t('fast_account_wealth'),
-            subtitle: t('register_demo_bonus'),
-            buttonText: t('register_now'),
-            gradient: "from-[#6366f1] to-[#4f46e5]",
-            onClick: () => onTabChange('mine', { mode: 'register' })
-          }
-        ]);
       }
     });
 
@@ -662,3 +659,4 @@ function NewsItem({ title, time, image, onClick }: { title: string, time: string
     </div>
   );
 }
+
