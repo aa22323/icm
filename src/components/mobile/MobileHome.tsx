@@ -13,7 +13,8 @@ import {
   Share2,
   Mail,
   MapPin,
-  Headphones
+  Headphones,
+  Loader2
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { db } from "../../lib/firebase";
@@ -63,22 +64,7 @@ export default function MobileHome({ onSelectMarket, onTabChange }: { onSelectMa
   
   const [selectedNews, setSelectedNews] = useState<NewsItemData | null>(null);
   const [currentBanner, setCurrentBanner] = useState(0);
-  const [banners, setBanners] = useState<any[]>([
-    {
-      title: t('global_trading_platform'),
-      subtitle: t('safe_transparent_efficient'),
-      buttonText: t('start_trading_now'),
-      gradient: "from-[#0166fc] to-[#004dc2]",
-      onClick: onSelectMarket
-    },
-    {
-      title: t('fast_account_wealth'),
-      subtitle: t('register_demo_bonus'),
-      buttonText: t('register_now'),
-      gradient: "from-[#6366f1] to-[#4f46e5]",
-      onClick: () => onTabChange('mine', { mode: 'register' })
-    }
-  ]);
+  const [banners, setBanners] = useState<any[]>([]);
   const [news, setNews] = useState<NewsItemData[]>([]);
 
   useEffect(() => {
@@ -290,7 +276,7 @@ export default function MobileHome({ onSelectMarket, onTabChange }: { onSelectMa
                 animate={{ x: 0 }}
                 exit={{ x: "-100%" }}
                 transition={{ duration: 0.6, ease: [0.32, 0.72, 0, 1] }}
-                className={`absolute inset-0 p-6 text-white ${banners[currentBanner].image ? '' : `bg-gradient-to-br ${banners[currentBanner].gradient || 'from-[#0166fc] to-[#004dc2]'}`}`}
+                className={`absolute inset-0 text-white ${banners[currentBanner].image ? '' : `bg-gradient-to-br ${banners[currentBanner].gradient || 'from-[#0166fc] to-[#004dc2]'}`}`}
               >
                 {banners[currentBanner].image && (
                   <img 
@@ -302,22 +288,32 @@ export default function MobileHome({ onSelectMarket, onTabChange }: { onSelectMa
                 )}
                 
                 {!banners[currentBanner].image ? (
-                  <div className="relative z-10">
-                    <h2 className="text-2xl font-black mb-2 leading-tight">{banners[currentBanner].title || '全球领先交易平台'}</h2>
-                    <p className="text-blue-50 text-sm mb-6 opacity-90">{banners[currentBanner].subtitle || '安全、透明、高效的数字化交易体验'}</p>
-                    <button 
-                      onClick={banners[currentBanner].onClick || onSelectMarket}
-                      className="bg-white text-gray-900 px-6 py-2.5 rounded-xl font-bold text-sm shadow-sm active:scale-95 transition-transform"
-                    >
-                      {banners[currentBanner].buttonText || '立即查看'}
-                    </button>
+                  <div className="relative z-10 p-6">
+                    <h2 className="text-2xl font-black mb-2 leading-tight">{banners[currentBanner].title || ''}</h2>
+                    <p className="text-blue-50 text-sm mb-6 opacity-90">{banners[currentBanner].subtitle || ''}</p>
+                    {banners[currentBanner].buttonText && (
+                      <button 
+                        onClick={banners[currentBanner].onClick || onSelectMarket}
+                        className="bg-white text-gray-900 px-6 py-2.5 rounded-xl font-bold text-sm shadow-sm active:scale-95 transition-transform"
+                      >
+                        {banners[currentBanner].buttonText}
+                      </button>
+                    )}
                   </div>
                 ) : (
                   // If it's an image banner, make the whole area clickable if an onClick exists
                   <div 
-                    className="absolute inset-0 z-10 cursor-pointer" 
+                    className="absolute inset-0 z-10 cursor-pointer p-6" 
                     onClick={banners[currentBanner].onClick || onSelectMarket}
-                  />
+                  >
+                    {/* Even with an image, we might want to show title/subtitle if provided */}
+                    {banners[currentBanner].title && (
+                      <div className="relative z-20">
+                        <h2 className="text-2xl font-black mb-2 leading-tight drop-shadow-md">{banners[currentBanner].title}</h2>
+                        <p className="text-white/90 text-sm mb-6 drop-shadow-sm">{banners[currentBanner].subtitle}</p>
+                      </div>
+                    )}
+                  </div>
                 )}
                 
                 {/* Decorative elements */}
@@ -330,9 +326,8 @@ export default function MobileHome({ onSelectMarket, onTabChange }: { onSelectMa
               </motion.div>
             </AnimatePresence>
           ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-[#0166fc] to-[#004dc2] p-6 text-white flex flex-col justify-center">
-              <h2 className="text-2xl font-black mb-2 leading-tight">全球领先交易平台</h2>
-              <p className="text-blue-50 text-sm opacity-90">安全、透明、高效的数字化交易体验</p>
+            <div className="absolute inset-0 bg-gray-50 flex items-center justify-center">
+              <Loader2 className="h-6 w-6 text-gray-200 animate-spin" />
             </div>
           )}
 
@@ -659,4 +654,5 @@ function NewsItem({ title, time, image, onClick }: { title: string, time: string
     </div>
   );
 }
+
 
