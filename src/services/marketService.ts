@@ -170,5 +170,57 @@ export const marketService = {
     
     const priceDiff = type === 'buy' ? (currentPrice - entryPrice) : (entryPrice - currentPrice);
     return priceDiff * lots * contractSize;
+  },
+
+  // Optimized version of manipulated price calculation using provided controls
+  getManipulatedPriceSync(symbol: string, basePrice: number, controls: any[], ranges: any[]) {
+    try {
+      let currentBase = basePrice;
+
+      // 1. Range Control
+      const range = ranges.find(r => r.symbol === symbol && r.isActive);
+      if (range) {
+        const min = range.minPrice;
+        const max = range.maxPrice;
+        const mid = (min + max) / 2;
+        const halfRange = (max - min) / 2;
+
+        const timeFactor = Date.now() / (1000 * 60 * 10);
+        const sinFactor = Math.sin(timeFactor * Math.PI * 2);
+        const noise = (Math.sin(Date.now() / 2000) * 0.05) * (halfRange * 0.1);
+        const targetInRange = mid + (halfRange * sinFactor * 0.8) + noise;
+        currentBase = Math.max(min, Math.min(max, targetInRange));
+      }
+
+      // 2. Manual Intervention
+      const control = controls.find(c => c.symbol === symbol && c.isActive);
+      if (control) {
+        const startTime = control.startTime?.toDate?.().getTime() || control.startTime;
+        if (!startTime) return currentBase;
+        
+        const now = Date.now();
+        const elapsedMinutes = (now - startTime) / (1000 * 60);
+        
+        if (elapsedMinutes > control.durationMinutes) {
+          return control.targetPrice || currentBase * (1 + (control.targetChange || 0) / 100);
+        }
+
+        const progress = elapsedMinutes / control.durationMinutes;
+        if (control.targetPrice) {
+          const startPrice = control.startPrice || currentBase;
+          const priceDiff = control.targetPrice - startPrice;
+          return startPrice + (priceDiff * progress);
+        } else {
+          const currentTargetChange = (control.targetChange || 0) * progress;
+          return currentBase * (1 + currentTargetChange / 100);
+        }
+      }
+
+      return currentBase;
+    } catch (err) {
+      return basePrice;
+    }
   }
 };
+
+export default marketService;

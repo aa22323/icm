@@ -45,7 +45,7 @@ export default function MobileOrders({ onBack }: { onBack: () => void }) {
         <button onClick={onBack} className="p-1 -ml-1">
           <ChevronLeft className="h-6 w-6" />
         </button>
-        <h1 className="flex-1 text-center font-bold text-lg mr-6">{t('current_positions')}</h1>
+        <h1 className="flex-1 text-center font-bold text-lg mr-6">{t('orders')}</h1>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">

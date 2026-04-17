@@ -572,4 +572,3 @@ function getViewTitle(view: SubView, t: any): string {
   };
   return titles[view] || t('function_details');
 }
-

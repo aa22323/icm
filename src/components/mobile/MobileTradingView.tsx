@@ -74,6 +74,104 @@ export default function MobileTradingView({ productId, user }: { productId: stri
   }, [user]);
 
   const [orders, setOrders] = useState<any[]>([]);
+  const ordersRef = useRef<any[]>([]);
+  const [allPrices, setAllPrices] = useState<Record<string, number>>({});
+  const pricesRef = useRef<Record<string, number>>({});
+  const [marketControls, setMarketControls] = useState<{ranges: any[], interventions: any[]}>({ranges: [], interventions: []});
+  const [pnlTick, setPnlTick] = useState(0);
+
+  // Keep ordersRef in sync
+  useEffect(() => {
+    ordersRef.current = orders;
+  }, [orders]);
+
+  // Listen to Market Controls globally once
+  useEffect(() => {
+    const q1 = query(collection(db, "market_ranges"), where("isActive", "==", true));
+    const q2 = query(collection(db, "market_controls"), where("isActive", "==", true));
+
+    const unsub1 = onSnapshot(q1, (snap) => {
+      const ranges = snap.docs.map(d => d.data());
+      setMarketControls(prev => ({ ...prev, ranges }));
+    });
+    const unsub2 = onSnapshot(q2, (snap) => {
+      const interventions = snap.docs.map(d => d.data());
+      setMarketControls(prev => ({ ...prev, interventions }));
+    });
+
+    return () => {
+      unsub1();
+      unsub2();
+    };
+  }, []);
+
+  // Global Price Tracker for all products in orders
+  useEffect(() => {
+    let isSubscribed = true;
+
+    const updateAllPrices = async () => {
+      if (!isSubscribed) return;
+      
+      // Always work with the freshest snapshot of orders
+      const currentOrders = ordersRef.current;
+      const symbolsToUpdate = Array.from(new Set(currentOrders.map(o => o.symbol)));
+      
+      // Even if no orders, we keep local price knowledge for the active product
+      if (!symbolsToUpdate.includes(product.symbol)) {
+        symbolsToUpdate.push(product.symbol);
+      }
+
+      const results = await Promise.all(symbolsToUpdate.map(async (symbolObj: any) => {
+        const symbol = symbolObj as string;
+        const productInfo = PRODUCTS.find(p => p.symbol === symbol);
+        if (!productInfo) return null;
+
+        // Continuity: Use previous known price as base for drift
+        let basePrice = pricesRef.current[symbol] || productInfo.price;
+        
+        if (hasApiKey) {
+          const data = await marketService.getRealTimePrice(symbol);
+          if (data && data.price) {
+            basePrice = parseFloat(data.price);
+          }
+        } else {
+          // Robust real-time simulation: 
+          // Inject visible drift for ALL products to ensure UI always feels 'live'
+          const driftMagnitude = symbol === 'XAUUSD' ? 0.05 : 0.002; // Gold moves more points
+          const drift = (Math.random() - 0.5) * driftMagnitude;
+          basePrice += drift;
+        }
+        
+        const manipulatedPrice = marketService.getManipulatedPriceSync(
+          symbol, 
+          basePrice, 
+          marketControls.interventions, 
+          marketControls.ranges
+        );
+        return { symbol, price: manipulatedPrice };
+      }));
+
+      if (!isSubscribed) return;
+
+      const newPrices = { ...pricesRef.current };
+      results.forEach(res => {
+        if (res) {
+          newPrices[res.symbol] = res.price;
+        }
+      });
+      
+      pricesRef.current = newPrices;
+      setAllPrices(newPrices);
+    };
+
+    const interval = setInterval(updateAllPrices, 1000);
+    updateAllPrices(); 
+    return () => {
+      isSubscribed = false;
+      clearInterval(interval);
+    };
+  }, [hasApiKey, marketControls, productId]); // Re-trigger on product switch to re-sync drift base
+
   // Initialize Open Orders Listener
   useEffect(() => {
     if (!user) return;
@@ -91,14 +189,16 @@ export default function MobileTradingView({ productId, user }: { productId: stri
 
   // Liquidation Monitor
   useEffect(() => {
-    if (!user || orders.length === 0 || !currentPrice || userBalance === null) return;
+    if (!user || orders.length === 0 || userBalance === null) return;
     
     const checkLiquidation = async () => {
       for (const order of orders) {
-        // For simplicity, we only liquidate the current product's orders here
-        if (order.symbol !== product.symbol) continue;
+        const livePrice = pricesRef.current[order.symbol as string];
+        const priceToUse = (order.symbol === product.symbol && currentPrice) ? currentPrice : livePrice;
+        
+        if (!priceToUse) continue;
 
-        const pnl = marketService.calculatePnL(order, currentPrice);
+        const pnl = marketService.calculatePnL(order, priceToUse);
         const equity = userBalance + order.margin + pnl;
         const marginLevel = (equity / order.margin) * 100;
 
@@ -110,7 +210,7 @@ export default function MobileTradingView({ productId, user }: { productId: stri
     };
 
     checkLiquidation();
-  }, [currentPrice, orders, userBalance]);
+  }, [currentPrice, orders, userBalance, pnlTick]); // pnlTick ensures check at least every 800ms
 
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
@@ -125,7 +225,7 @@ export default function MobileTradingView({ productId, user }: { productId: stri
       return;
     }
 
-    const priceToUse = displayPrice;
+    const priceToUse = Number(displayPrice.toFixed(5));
     if (!priceToUse) {
       alert(t('price_unavailable'));
       return;
@@ -178,7 +278,13 @@ export default function MobileTradingView({ productId, user }: { productId: stri
     
     setClosingId(order.id);
     try {
-      const priceToUse = order.symbol === product.symbol ? (currentPrice || product.price) : order.entryPrice;
+      // Always prioritize the live price tracked for the symbol. 
+      // For the active product, we can use currentPrice which is the smoothed/visual price.
+      const livePrice = pricesRef.current[order.symbol as string];
+      const priceToUse = (order.symbol === product.symbol && currentPrice) 
+        ? currentPrice 
+        : (livePrice || order.entryPrice);
+        
       const pnl = marketService.calculatePnL(order, priceToUse);
       const returnAmount = order.margin + pnl;
 
@@ -321,11 +427,40 @@ export default function MobileTradingView({ productId, user }: { productId: stri
 
     let animId: number;
     let lastHeaderUpdate = 0;
+    let lastPnlUpdate = 0;
     const smoothAndDraw = () => {
       const chart = chartInstanceRef.current;
       const history = staticHistoryRef.current;
       const source = sourceRef.current;
+      const now = Date.now();
       
+      // Update ALL background product prices for global P&L smoothness
+      const currentOrders = ordersRef.current;
+      const symbolsToUpdate = Array.from(new Set(currentOrders.map(o => o.symbol)));
+      
+      symbolsToUpdate.forEach((symbol: any) => {
+        // Skip active product as it's handled by smoothing below
+        if (symbol === product.symbol) return;
+        
+        let p = pricesRef.current[symbol as string];
+        if (!p) {
+          const prod = PRODUCTS.find(pr => pr.symbol === symbol);
+          p = prod?.price || 0;
+        }
+        
+        // Very subtle drift (approx 0.01% per minute)
+        // Only apply drift occasionally or at very low magnitude to avoid "jumping"
+        const drift = (Math.random() - 0.5) * (p * 0.000005); 
+        p += drift;
+        pricesRef.current[symbol as string] = p;
+      });
+
+      // Force P&L re-render every 800ms for a steadier feeling
+      if (now - lastPnlUpdate > 800) {
+        setPnlTick(prev => prev + 1);
+        lastPnlUpdate = now;
+      }
+
       if (chart && history.length > 0 && source.length > 0) {
         let nextPrice = smoothPriceRef.current;
         if (targetPriceRef.current !== null) {
@@ -787,16 +922,22 @@ export default function MobileTradingView({ productId, user }: { productId: stri
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="text-[#999]">{t('lots')}: <span className="text-black font-bold">{order.lots}</span></div>
-                  <div className="text-[#999]">{t('entry_price')}: <span className="text-black font-bold">{order.entryPrice}</span></div>
-                  <div className="text-[#999]">{t('margin_label')}: <span className="text-black font-bold">${order.margin}</span></div>
+                  <div className="text-[#999]">{t('lots')}: <span className="text-black font-bold">{Number(order.lots).toFixed(2)}</span></div>
+                  <div className="text-[#999]">{t('entry_price')}: <span className="text-black font-bold">{Number(order.entryPrice).toFixed(4)}</span></div>
+                  <div className="text-[#999]">{t('margin_label')}: <span className="text-black font-bold">${Number(order.margin).toFixed(2)}</span></div>
                   <div className="text-[#999]">
                     {t('floating_pnl') || 'Profit/Loss'}: 
                     {(() => {
-                      const priceToUse = order.symbol === product.symbol ? (currentPrice || product.price) : order.entryPrice;
+                      // Functional Logic:
+                      // Use pricesRef directly because it's updated at 60fps in smoothAndDraw
+                      // This avoids the 1s delay/step of the allPrices state hub
+                      const priceToUse = (order.symbol === product.symbol && currentPrice) 
+                        ? currentPrice 
+                        : (pricesRef.current[order.symbol as string] || order.entryPrice);
+                        
                       const pnl = marketService.calculatePnL(order, priceToUse);
                       return (
-                        <span className={`font-bold ml-1 ${pnl >= 0 ? 'text-[#0166fc]' : 'text-[#f23c48]'}`}>
+                        <span key={pnlTick} className={`font-bold ml-1 ${pnl >= 0 ? 'text-[#0166fc]' : 'text-[#f23c48]'}`}>
                           ${pnl.toFixed(2)}
                         </span>
                       );

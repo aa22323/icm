@@ -258,4 +258,3 @@ export default React.memo(function MobileLogin({ onBack, onLogin, initialMode }:
     </div>
   );
 });
-

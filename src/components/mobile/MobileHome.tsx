@@ -646,6 +646,3 @@ function NewsItem({ title, time, image, onClick }: { title: string, time: string
     </div>
   );
 }
-
-
-
