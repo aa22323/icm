@@ -19,6 +19,8 @@ const languages: Language[] = [
   { code: 'de', name: 'German', nativeName: 'Deutsche', flag: 'de' },
   { code: 'ru', name: 'Russian', nativeName: 'Русский язык', flag: 'ru' },
   { code: 'es', name: 'Spanish', nativeName: 'Español', flag: 'es' },
+  { code: 'tr', name: 'Turkish', nativeName: 'Türkçe', flag: 'tr' },
+  { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी', flag: 'in' },
 ];
 
 interface MobileLanguageSwitchProps {

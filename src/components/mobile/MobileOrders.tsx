@@ -78,15 +78,15 @@ export default function MobileOrders({ onBack }: { onBack: () => void }) {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-0.5">
                   <p className="text-[10px] text-gray-400 uppercase font-bold">{t('lots')}</p>
-                  <p className="font-bold text-sm">{order.lots}</p>
+                  <p className="font-bold text-sm">{Number(order.lots).toFixed(2)}</p>
                 </div>
                 <div className="space-y-0.5">
                   <p className="text-[10px] text-gray-400 uppercase font-bold">{t('entry_price')}</p>
-                  <p className="font-bold text-sm">{order.entryPrice}</p>
+                  <p className="font-bold text-sm">{Number(order.entryPrice).toFixed(5)}</p>
                 </div>
                 <div className="space-y-0.5">
                   <p className="text-[10px] text-gray-400 uppercase font-bold">{t('margin_label')}</p>
-                  <p className="font-bold text-sm">${order.margin}</p>
+                  <p className="font-bold text-sm">${Number(order.margin).toFixed(2)}</p>
                 </div>
                 <div className="space-y-0.5">
                   <p className="text-[10px] text-gray-400 uppercase font-bold">{t('pnl') || 'PnL'}</p>
